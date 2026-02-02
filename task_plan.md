@@ -22,12 +22,12 @@ Build an iOS app flow that:
 | Phase | Status | Deliverable |
 |------:|:------:|-------------|
 | 0 | complete | Planning files + design doc |
-| 1 | in_progress | SwiftData model for saved cutouts + migration from template Item |
-| 2 | pending | System camera sheet (UIImagePickerController) integrated in SwiftUI |
-| 3 | pending | Subject extraction pipeline: Vision mask -> CI mask compositing -> PNG export |
-| 4 | pending | Save/load images from Documents + grid UI with delete |
-| 5 | pending | Permissions (NSCameraUsageDescription) + user-facing error states |
-| 6 | pending | Tests for core logic (selection/cropping/path) + basic verification steps |
+| 1 | complete | SwiftData model for saved cutouts + migration from template Item |
+| 2 | complete | System camera sheet (UIImagePickerController) integrated in SwiftUI |
+| 3 | complete | Subject extraction pipeline: Vision instance mask -> masked image -> PNG export |
+| 4 | complete | Save/load images from Documents + grid UI with delete |
+| 5 | complete | Permissions (NSCameraUsageDescription) + user-facing error states |
+| 6 | deferred | Tests for core logic (selection/cropping/path) + basic verification steps (skipped per request) |
 
 ## Acceptance Criteria
 - Tap button -> system camera opens -> capture -> app shows processing -> then grid shows new cutout

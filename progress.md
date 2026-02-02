@@ -8,4 +8,10 @@
   - auto pick largest subject
   - same screen shows take-photo button + grid gallery
 - Created planning files and began design doc workflow.
-
+- Created feature branch `subject-cutout`.
+- Implemented end-to-end v1 flow:
+  - SwiftData model `SubjectCutout` + updated app schema
+  - system camera via `UIImagePickerController` wrapped in SwiftUI
+  - Vision foreground instance mask extraction, selecting largest instance, generating cutout
+  - saving PNG to Documents and showing a grid gallery with delete
+  - added camera usage description key to generated Info.plist build settings
