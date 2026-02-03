@@ -10,6 +10,11 @@ import ImageIO
 import UIKit
 import Vision
 
+struct SubjectExtractionResult {
+    let fullSizeCutout: UIImage
+    let croppedCutout: UIImage
+}
+
 enum SubjectExtractorError: LocalizedError {
     case invalidImage
     case noForegroundInstances
@@ -19,13 +24,13 @@ enum SubjectExtractorError: LocalizedError {
     var errorDescription: String? {
         switch self {
         case .invalidImage:
-            return "Invalid image."
+            return "图片无效，无法处理。"
         case .noForegroundInstances:
-            return "No subject detected. Try a clearer photo."
+            return "未识别到主体，请换一张更清晰的照片。"
         case .maskImageGenerationFailed:
-            return "Failed to generate the subject cutout."
+            return "生成主体抠图失败。"
         case .outputImageCreationFailed:
-            return "Failed to create the output image."
+            return "输出图片创建失败。"
         }
     }
 }
@@ -37,7 +42,7 @@ struct SubjectExtractor {
         self.ciContext = ciContext
     }
 
-    func extractLargestSubjectCutout(from image: UIImage) throws -> UIImage {
+    func extractLargestSubject(from image: UIImage) throws -> SubjectExtractionResult {
         guard let cgImage = image.cgImage else {
             throw SubjectExtractorError.invalidImage
         }
@@ -59,21 +64,33 @@ struct SubjectExtractor {
         let instances = IndexSet(integer: largestInstanceId)
 
         do {
-            let maskedPixelBuffer = try observation.generateMaskedImage(
+            let fullSizePixelBuffer = try observation.generateMaskedImage(
+                ofInstances: instances,
+                from: handler,
+                croppedToInstancesExtent: false
+            )
+
+            let croppedPixelBuffer = try observation.generateMaskedImage(
                 ofInstances: instances,
                 from: handler,
                 croppedToInstancesExtent: true
             )
 
-            let ciImage = CIImage(cvPixelBuffer: maskedPixelBuffer)
-            guard let outputCGImage = ciContext.createCGImage(ciImage, from: ciImage.extent) else {
-                throw SubjectExtractorError.outputImageCreationFailed
-            }
+            let fullSizeCutout = try makeUIImage(from: fullSizePixelBuffer, scale: image.scale)
+            let croppedCutout = try makeUIImage(from: croppedPixelBuffer, scale: image.scale)
 
-            return UIImage(cgImage: outputCGImage, scale: image.scale, orientation: .up)
+            return SubjectExtractionResult(fullSizeCutout: fullSizeCutout, croppedCutout: croppedCutout)
         } catch {
             throw SubjectExtractorError.maskImageGenerationFailed(underlying: error)
         }
+    }
+
+    private func makeUIImage(from pixelBuffer: CVPixelBuffer, scale: CGFloat) throws -> UIImage {
+        let ciImage = CIImage(cvPixelBuffer: pixelBuffer)
+        guard let outputCGImage = ciContext.createCGImage(ciImage, from: ciImage.extent) else {
+            throw SubjectExtractorError.outputImageCreationFailed
+        }
+        return UIImage(cgImage: outputCGImage, scale: scale, orientation: .up)
     }
 
     private static func largestInstanceId(in observation: VNInstanceMaskObservation) -> Int? {
@@ -153,4 +170,3 @@ extension CGImagePropertyOrientation {
         }
     }
 }
-

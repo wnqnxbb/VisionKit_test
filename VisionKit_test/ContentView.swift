@@ -7,6 +7,7 @@
 
 import SwiftUI
 import SwiftData
+import AVFoundation
 import UIKit
 
 struct ContentView: View {
@@ -14,12 +15,13 @@ struct ContentView: View {
     @Query(sort: \SubjectCutout.createdAt, order: .reverse) private var cutouts: [SubjectCutout]
 
     @State private var isShowingCamera = false
-    @State private var isProcessing = false
+
+    @State private var selectedCutout: SubjectCutout?
+
     @State private var isShowingAlert = false
     @State private var alertTitle = ""
     @State private var alertMessage = ""
 
-    private let extractor = SubjectExtractor()
     private let fileStore = SubjectCutoutFileStore()
 
     var body: some View {
@@ -38,26 +40,21 @@ struct ContentView: View {
             } message: {
                 Text(alertMessage)
             }
-            .sheet(isPresented: $isShowingCamera) {
-                CameraPicker { image in
-                    processCapturedImage(image)
-                }
-                .ignoresSafeArea()
+            .fullScreenCover(isPresented: $isShowingCamera) {
+                SubjectCameraView()
             }
-            .overlay {
-                if isProcessing {
-                    processingOverlay
-                }
+            .sheet(item: $selectedCutout) { cutout in
+                SubjectCutoutDetailView(fileURL: try? fileStore.fileURL(for: cutout.fileName))
             }
         }
     }
 
     private var header: some View {
         VStack(alignment: .leading, spacing: 8) {
-            Text("拍照后自动识别主体并抠图保存")
+            Text("拍照后自动识别主体并保存")
                 .font(.title3.weight(.semibold))
                 .foregroundStyle(.primary)
-            Text("系统相机拍照 -> 自动取面积最大的主体 -> 透明 PNG 保存到本地。")
+            Text("相机拍照 -> 自动取面积最大的主体 -> 透明 PNG 保存到本地。")
                 .font(.subheadline)
                 .foregroundStyle(.secondary)
         }
@@ -65,7 +62,8 @@ struct ContentView: View {
 
     private var takePhotoButton: some View {
         Button {
-            guard UIImagePickerController.isSourceTypeAvailable(.camera) else {
+            let device = AVCaptureDevice.default(.builtInWideAngleCamera, for: .video, position: .back)
+            guard device != nil else {
                 showAlert(title: "无法打开相机", message: "当前设备不支持相机（模拟器通常不可用）。")
                 return
             }
@@ -74,7 +72,7 @@ struct ContentView: View {
             HStack(spacing: 12) {
                 Image(systemName: "camera.fill")
                     .font(.system(size: 18, weight: .semibold))
-                Text(isProcessing ? "处理中…" : "拍照抠主体")
+                Text("拍照抠主体")
                     .font(.headline)
                 Spacer(minLength: 0)
                 Image(systemName: "chevron.right")
@@ -91,7 +89,6 @@ struct ContentView: View {
             )
         }
         .buttonStyle(.plain)
-        .disabled(isProcessing)
     }
 
     private var gallery: some View {
@@ -119,6 +116,7 @@ struct ContentView: View {
                     ForEach(cutouts) { cutout in
                         SubjectCutoutCell(
                             fileURL: try? fileStore.fileURL(for: cutout.fileName),
+                            onTap: { selectedCutout = cutout },
                             onDelete: { deleteCutout(cutout) }
                         )
                     }
@@ -126,53 +124,6 @@ struct ContentView: View {
             }
         }
         .frame(maxWidth: .infinity, alignment: .leading)
-    }
-
-    private var processingOverlay: some View {
-        ZStack {
-            Rectangle()
-                .fill(.black.opacity(0.35))
-                .ignoresSafeArea()
-
-            VStack(spacing: 12) {
-                ProgressView()
-                    .tint(.white)
-                    .scaleEffect(1.2)
-                Text("正在识别主体并抠图…")
-                    .font(.subheadline.weight(.semibold))
-                    .foregroundStyle(.white)
-            }
-            .padding(24)
-            .background(
-                RoundedRectangle(cornerRadius: 16, style: .continuous)
-                    .fill(.black.opacity(0.55))
-            )
-            .padding(24)
-        }
-    }
-
-    private func processCapturedImage(_ image: UIImage) {
-        guard !isProcessing else { return }
-        isProcessing = true
-
-        // Use GCD here to avoid strict Sendable capture constraints while still keeping heavy Vision work off the main thread.
-        DispatchQueue.global(qos: .userInitiated).async {
-            do {
-                let cutoutImage = try extractor.extractLargestSubjectCutout(from: image)
-                let fileName = "\(UUID().uuidString).png"
-                _ = try fileStore.savePNG(cutoutImage, fileName: fileName)
-
-                DispatchQueue.main.async {
-                    modelContext.insert(SubjectCutout(fileName: fileName))
-                    isProcessing = false
-                }
-            } catch {
-                DispatchQueue.main.async {
-                    isProcessing = false
-                    showAlert(title: "处理失败", message: (error as? LocalizedError)?.errorDescription ?? error.localizedDescription)
-                }
-            }
-        }
     }
 
     private func deleteCutout(_ cutout: SubjectCutout) {
@@ -200,28 +151,32 @@ struct ContentView: View {
 
 private struct SubjectCutoutCell: View {
     let fileURL: URL?
+    let onTap: () -> Void
     let onDelete: () -> Void
 
     @State private var uiImage: UIImage?
 
     var body: some View {
-        ZStack {
-            RoundedRectangle(cornerRadius: 12, style: .continuous)
-                .fill(Color(.secondarySystemBackground))
+        Button(action: onTap) {
+            ZStack {
+                RoundedRectangle(cornerRadius: 12, style: .continuous)
+                    .fill(Color(.secondarySystemBackground))
 
-            if let uiImage {
-                Image(uiImage: uiImage)
-                    .resizable()
-                    .scaledToFill()
-                    .clipped()
-                    .transition(.opacity)
-            } else {
-                ProgressView()
-                    .controlSize(.small)
+                if let uiImage {
+                    Image(uiImage: uiImage)
+                        .resizable()
+                        .scaledToFill()
+                        .clipped()
+                        .transition(.opacity)
+                } else {
+                    ProgressView()
+                        .controlSize(.small)
+                }
             }
+            .frame(height: 120)
+            .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
         }
-        .frame(height: 120)
-        .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
+        .buttonStyle(.plain)
         .contextMenu {
             Button(role: .destructive) {
                 onDelete()
