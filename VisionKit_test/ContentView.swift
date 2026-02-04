@@ -29,7 +29,11 @@ struct ContentView: View {
             ScrollView {
                 VStack(alignment: .leading, spacing: 24) {
                     header
-                    takePhotoButton
+                    HStack {
+                        Spacer()
+                        takePhotoButton
+                        Spacer()
+                    }
                     gallery
                 }
                 .padding(24)
@@ -69,24 +73,22 @@ struct ContentView: View {
             }
             isShowingCamera = true
         } label: {
-            HStack(spacing: 12) {
-                Image(systemName: "camera.fill")
-                    .font(.system(size: 18, weight: .semibold))
-                Text("拍照抠主体")
-                    .font(.headline)
-                Spacer(minLength: 0)
-                Image(systemName: "chevron.right")
-                    .font(.system(size: 14, weight: .semibold))
-                    .foregroundStyle(.white.opacity(0.85))
-            }
-            .foregroundStyle(.white)
-            .padding(.horizontal, 16)
-            .padding(.vertical, 14)
-            .frame(maxWidth: .infinity)
-            .background(
-                RoundedRectangle(cornerRadius: 14, style: .continuous)
+            ZStack {
+                Circle()
                     .fill(Color.accentColor)
-            )
+
+                VStack(spacing: 6) {
+                    Image(systemName: "camera.fill")
+                        .font(.system(size: 22, weight: .semibold))
+                    Text("拍照抠主体")
+                        .font(.subheadline.weight(.semibold))
+                }
+                .foregroundStyle(.white)
+                .multilineTextAlignment(.center)
+                .padding(.horizontal, 12)
+            }
+            .frame(width: 132, height: 132)
+            .contentShape(Circle())
         }
         .buttonStyle(.plain)
     }

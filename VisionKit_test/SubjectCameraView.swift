@@ -46,6 +46,7 @@ struct SubjectCameraView: View {
                 backgroundLayer
                     .frame(width: proxy.size.width, height: proxy.size.height)
                     .clipped()
+                    .ignoresSafeArea()
 
                 Color.black
                     .opacity(dimOpacity)
@@ -63,6 +64,7 @@ struct SubjectCameraView: View {
                         .aspectRatio(contentMode: .fill)
                         .frame(width: proxy.size.width, height: proxy.size.height)
                         .clipped()
+                        .ignoresSafeArea()
                         .opacity(cutoutOpacity)
                         .scaleEffect(cutoutScale)
                         .shadow(color: .black.opacity(0.35), radius: 18, x: 0, y: 12)
@@ -173,7 +175,11 @@ struct SubjectCameraView: View {
         .padding(.top, 12)
         .padding(.bottom, safeAreaBottom + 14)
         .frame(maxWidth: .infinity, alignment: .bottom)
-        .background(bottomGradient)
+        .background(alignment: .bottom) {
+            Rectangle()
+                .fill(bottomGradient)
+                .frame(height: 180)
+        }
     }
 
     private var permissionDeniedCard: some View {
@@ -213,17 +219,16 @@ struct SubjectCameraView: View {
         .ignoresSafeArea()
     }
 
-    private var bottomGradient: some View {
+    private var bottomGradient: LinearGradient {
         LinearGradient(
             colors: [
                 .black.opacity(0.0),
-                .black.opacity(0.35),
-                .black.opacity(0.65),
+                .black.opacity(0.25),
+                .black.opacity(0.0),
             ],
             startPoint: .top,
             endPoint: .bottom
         )
-        .ignoresSafeArea()
     }
 
     private var shutterButton: some View {
